@@ -1,6 +1,8 @@
 ## `microcks test` – Run Tests on Microcks
 Runs contract or integration tests against a deployed API using the selected runner.
 
+It can also run in an ephemeral, local `--dry-run` mode powered by Testcontainers to validate an API contract without connecting to a remote Microcks server.
+
 ### Usage
 ```bash
 microcks test <apiName:apiVersion> <testEndpoint> <runner> [flags]
@@ -19,6 +21,9 @@ microcks test Beer Catalog API:0.9 http://localhost:9090/api/ POSTMAN \
         --microcksURL <microcks-url> \
         --keycloakClientId <client-id> \
         --keycloakClientSecret <client-secret> \
+
+# Run a test using an ephemeral local Microcks container (dry-run mode)
+microcks test "Test API:1.0" http://localhost:8080 OPEN_API_SCHEMA --dry-run --artifact ./test-api.yaml
 ```
 
 ### Runner Options
@@ -34,6 +39,8 @@ One of:
 | `--filteredOperations` | Comma-separated list of operations to test                                          |
 | `--operationsHeaders`  | Custom headers for operations as JSON string                                        |
 | `--oAuth2Context`      | OAuth2 client context as JSON string                                                |
+| `--dry-run`            | Run test using ephemeral local Microcks instance (requires Docker/Podman)           |
+| `--artifact`           | Path to API artifact to import (required with `--dry-run`)                          |
 
 
 ### Options Inherited from Parent Commands

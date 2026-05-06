@@ -39,12 +39,25 @@ func NewTestCommand(globalClientOpts *connectors.ClientOptions) *cobra.Command {
 		filteredOperations string
 		operationsHeaders  string
 		oAuth2Context      string
+		dryRun             bool
+		artifactPath       string
 	)
 	var testCmd = &cobra.Command{
 
 		Use:   "test",
 		Short: "Run tests on Microcks",
-		Long:  `Run tests on Microcks`,
+		Long: `Run tests on Microcks.
+
+When using the --dry-run flag, you can execute a test against an ephemeral local Microcks instance
+managed via Testcontainers. This mode requires Docker/Podman to be running and does not need a remote
+Microcks server. The --artifact flag must be provided to specify the API specification to import.
+Note that runners requiring the Microcks async-minion (e.g. POSTMAN, ASYNC_API_SCHEMA) are not
+supported in dry-run mode.`,
+		Example: `  # Run a basic test against a remote server
+  microcks test "Test API:1.0" http://localhost:8080 HTTP
+
+  # Run a test using an ephemeral local Microcks container
+  microcks test "Test API:1.0" http://localhost:8080 HTTP --dry-run --artifact ./test-api.yaml`,
 		Run: func(cmd *cobra.Command, args []string) {
 			// Parse subcommand args first.
 			if len(os.Args) < 4 {
@@ -108,6 +121,26 @@ func NewTestCommand(globalClientOpts *connectors.ClientOptions) *cobra.Command {
 					os.Exit(1)
 				}
 				waitForMilliseconds = n * 60 * 1000
+			}
+
+			// Handle dry-run mode: use an ephemeral Testcontainers instance.
+			if dryRun {
+				err := runDryTest(dryRunConfig{
+					serviceRef:          serviceRef,
+					testEndpoint:        testEndpoint,
+					runnerType:          runnerType,
+					artifactPath:        artifactPath,
+					waitForMilliseconds: waitForMilliseconds,
+					secretName:          secretName,
+					filteredOperations:  filteredOperations,
+					operationsHeaders:   operationsHeaders,
+					oAuth2Context:       oAuth2Context,
+				})
+				if err != nil {
+					fmt.Printf("Dry-run test failed: %s\n", err)
+					os.Exit(1)
+				}
+				return
 			}
 
 			var mc connectors.MicrocksClient
@@ -216,6 +249,8 @@ func NewTestCommand(globalClientOpts *connectors.ClientOptions) *cobra.Command {
 	testCmd.Flags().StringVar(&filteredOperations, "filteredOperations", "", "List of operations to launch a test for")
 	testCmd.Flags().StringVar(&operationsHeaders, "operationsHeaders", "", "Override of operations headers as JSON string")
 	testCmd.Flags().StringVar(&oAuth2Context, "oAuth2Context", "", "Spec of an OAuth2 client context as JSON string")
+	testCmd.Flags().BoolVar(&dryRun, "dry-run", false, "Run test using ephemeral local Microcks instance (requires Docker)")
+	testCmd.Flags().StringVar(&artifactPath, "artifact", "", "Path to API artifact to import (required with --dry-run)")
 
 	return testCmd
 }
